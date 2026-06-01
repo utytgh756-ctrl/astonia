@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Astonia - Fighting Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0b0c10;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, #1f2833, #0b0c10);
+            border: 4px solid #463077;
+            box-shadow: 0 0 30px rgba(102, 252, 241, 0.2);
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        /* واجهة الطاقة HUD */
+        .hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 10;
+        }
+        .health-bar-container {
+            width: 260px;
+            height: 16px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid #66fcf1;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+        }
+        .health-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.15s ease-out;
+        }
+        #p1-health { background: linear-gradient(to left, #00d2ff, #0066ff); float: right; }
+        #p2-health { background: linear-gradient(to right, #ff0055, #990022); }
+        .player-name {
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 4px #000;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* أزرار اللمس للأيباد والموبايل */
+        #mobile-controls {
+            display: none;
+            width: 100%;
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            padding: 0 30px;
+            justify-content: space-between;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .control-group {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        .btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(102, 252, 241, 0.4);
+            border-radius: 50%;
+            color: #66fcf1;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+        }
+        .btn:active {
+            background: rgba(102, 252, 241, 0.4);
+            color: #fff;
+            border-color: #66fcf1;
+            transform: scale(1.1);
+        }
+        #screen-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 45px;
+            font-weight: 900;
+            text-shadow: 0 0 20px #000;
+            display: none;
+            z-index: 30;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        #restart-btn {
+            margin-top: 20px;
+            padding: 12px 28px;
+            font-size: 16px;
+            background: #66fcf1;
+            color: #0b0c10;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.4);
+            transition: 0.2s;
+        }
+        #restart-btn:active {
+            transform: scale(0.95);
+        }
+        @media (max-width: 1024px) or (pointer: coarse) {
+            #game-container {
+                width: 95vw;
+                height: 48vw;
+                max-height: 70vh;
+            }
+            #mobile-controls { display: flex; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="margin: 10px 0; font-size: 28px; color: #66fcf1; text-shadow: 0 0 15px rgba(102, 252, 241, 0.6); letter-spacing: 4px; font-weight: 900;">ASTONIA</h1>
+
+    <div id="game-container">
+        <div class="hud">
+            <div>
+                <div class="player-name" style="color: #00d2ff;">Aston (Player)</div>
+                <div class="health-bar-container"><div id="p1-health" class="health-bar"></div></div>
+            </div>
+            <div style="text-align: left;">
+                <div class="player-name" style="color: #ff0055;">AI Enemy</div>
+                <div class="health-bar-container"><div id="p2-health" class="health-bar"></div></div>
+            </div>
+        </div>
+        
+        <div id="screen-msg">
+            <span id="win-text">FINISH HIM!</span><br>
+            <button id="restart-btn" onclick="resetGame()">جولة جديدة 🔄</button>
+        </div>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <div id="mobile-controls">
+            <div class="control-group">
+                <div class="btn" id="btn-left">◀</div>
+                <div class="btn" id="btn-right">▶</div>
+            </div>
+            <div class="control-group">
+                <div class="btn" id="btn-jump">▲</div>
+                <div class="btn" id="btn-punch">J</div>
+                <div class="btn" id="btn-kick">K</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const gravity = 0.6;
+        const groundHeight = 50;
+
+        // نظام جزيئات السائل الأزرق الأسطوري
+        let particles = [];
+        class Particle {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = Math.random() * 3 + 2;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = '#00f0ff';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#00f0ff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // جاذبية السائل
+                this.alpha -= this.decay;
+            }
+        }
+
+        function spawnBlueFluid(x, y, direction) {
+            for (let i = 0; i < 20; i++) {
+                const vx = (Math.random() * 5 + 2) * direction + (Math.random() - 0.5) * 2;
+                const vy = (Math.random() - 0.7) * 5;
+                particles.push(new Particle(x, y, vx, vy));
+            }
+        }
+
+        // كلاس المقاتلين مع رسم مجسمات مفصلة والأنيميشن
+        class Fighter {
+            constructor({ position, velocity, mainColor, detailColor, isPlayer }) {
+                this.position = position;
+                this.velocity = velocity;
+                this.width = 60;
+                this.height = 110;
+                this.mainColor = mainColor;
+                this.detailColor = detailColor;
+                this.health = 100;
+                this.isGrounded = false;
+                this.isAttacking = false;
+                this.attackType = 'punch'; // 'punch' أو 'kick'
+                this.animFrame = 0;
+                
+                this.attackBox = {
+                    position: { x: this.position.x, y: this.position.y },
+                    width: 90,
+                    height: 40
+                };
+                this.isPlayer = isPlayer;
+            }
+
+            draw() {
+                const x = this.position.x + this.width / 2;
+                const y = this.position.y;
+                
+                // تحديد الاتجاه (اللاعب ينظر لليمين، العدو لليسار تلقائياً ويتقلبون حسب المواقع)
+                const direction = (this.isPlayer) ? (player.position.x < enemy.position.x ? 1 : -1) : (enemy.position.x < player.position.x ? 1 : -1);
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(direction, 1); // قلب المجسم برمجياً حسب الاتجاه
+
+                // 1. رسم الأقدام (أنيميشن ركض بسيط عند وجود سرعة أفقية)
+                ctx.fillStyle = this.detailColor;
+                let legOffset = 0;
+                if (Math.abs(this.velocity.x) > 0.1) {
+                    this.animFrame += 0.2;
+                    legOffset = Math.sin(this.animFrame) * 12;
+                }
+                // قدم 1
+                ctx.fillRect(-15, 80, 12, 30 + (legOffset > 0 ? -legOffset/2 : legOffset/2));
+                // قدم 2
+                ctx.fillRect(5, 80, 12, 30 + (legOffset < 0 ? legOffset/2 : -legOffset/2));
+
+                // 2. الجسد / الدرع الرئيسي
+                ctx.fillStyle = this.mainColor;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.mainColor;
+                ctx.fillRect(-20, 25, 40, 60); // الجذع
+                ctx.shadowBlur = 0;
+
+                // حزام أو تفاصيل على الدرع
+                ctx.fillStyle = this.detailColor;
+                ctx.fillRect(-20, 55, 40, 10);
+
+                // 3. الرأس والأعين الشيطانية
+                ctx.fillStyle = '#e0e0e0';
+                ctx.beginPath();
+                ctx.arc(0, 5, 18, 0, Math.PI * 2);
+                ctx.fill();
+                // قناع أو خوذة
+                ctx.fillStyle = this.mainColor;
+                ctx.fillRect(-18, -10, 36, 12);
+                // الأعين المضيئة
+                ctx.fillStyle = this.isPlayer ? '#00f0ff' : '#ff0055';
+                ctx.fillRect(4, 2, 6, 4);
+
+                // 4. رسم الأيدي وأنيميشن القتال
+                ctx.fillStyle = this.detailColor;
+                if (this.isAttacking && this.attackType === 'punch') {
+                    // أنيميشن اللكمة: اليد تمتد للأمام بالكامل
+                    ctx.fillRect(10, 35, 45, 12);
+                } else if (this.isAttacking && this.attackType === 'kick') {
+                    // أنيميشن الرفسة: تظهر القدم ممتدة بزاوية
+                    ctx.save();
+                    ctx.translate(10, 75);
+                    ctx.rotate(-Math.PI / 4);
+                    ctx.fillRect(0, 0, 50, 14);
+                    ctx.restore();
+                } else {
+                    // الوضع العادي: الأيدي في وضعية الدفاع الاستعدادية
+                    ctx.fillRect(10, 35, 12, 25);
+                    ctx.fillRect(-18, 35, 10, 25);
+                }
+
+                ctx.restore();
+            }
+
+            update() {
+                this.draw();
+                
+                // تحديث موقع صندوق الهجوم ديناميكياً حسب اتجاه النظر
+                const direction = (this.isPlayer) ? (player.position.x < enemy.position.x ? 1 : -1) : (enemy.position.x < player.position.x ? 1 : -1);
+                
+                if (direction === 1) {
+                    this.attackBox.position.x = this.position.x + 30;
+                } else {
+                    this.attackBox.position.x = this.position.x - this.attackBox.width + 30;
+                }
+                this.attackBox.position.y = this.position.y + 25;
+
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+
+                if (this.position.y + this.height + this.velocity.y >= canvas.height - groundHeight) {
+                    this.velocity.y = 0;
+                    this.position.y = canvas.height - groundHeight - this.height;
+                    this.isGrounded = true;
+                } else {
+                    this.velocity.y += gravity;
+                    this.isGrounded = false;
+                }
+
+                if (this.position.x < 0) this.position.x = 0;
+                if (this.position.x + this.width > canvas.width) this.position.x = canvas.width - this.width;
+            }
+
+            attack(type) {
+                if(this.health <= 0) return;
+                this.attackType = type;
+                this.attackBox.width = (type === 'kick') ? 120 : 90; // الركلة مداها أطول
+                this.isAttacking = true;
+                setTimeout(() => { this.isAttacking = false; }, 120);
+            }
+        }
+
+        // إنشاء مجسمات اللاعبين بالألوان الاحترافية (مضيء متناسق مع النيون الأزرق)
+        let player = new Fighter({
+            position: { x: 150, y: 0 },
+            velocity: { x: 0, y: 0 },
+            mainColor: '#1f2833',
+            detailColor: '#00d2ff',
+            isPlayer: true
+        });
+
+        let enemy = new Fighter({
+            position: { x: 600, y: 0 },
+            velocity: { x: 0, y: 0 },
+            mainColor: '#4a0e17',
+            detailColor: '#ff0055',
+            isPlayer: false
+        });
+
+        const keys = { ArrowLeft: false, ArrowRight: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            if (e.key === 'ArrowUp' && player.isGrounded) player.velocity.y = -15;
+            if (e.key.toLowerCase() === 'j') player.attack('punch');
+            if (e.key.toLowerCase() === 'k') player.attack('kick');
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        });
+
+        // دعم دقيق وممتاز للمس المتعدد (الأيباد / تابلت)
+        let activeTouches = {};
+
+        function updateTouchMovement() {
+            if (activeTouches['btn-left']) {
+                player.velocity.x = -5;
+            } else if (activeTouches['btn-right']) {
+                player.velocity.x = 5;
+            } else {
+                player.velocity.x = 0;
+            }
+        }
+
+        const touchButtons = ['btn-left', 'btn-right', 'btn-jump', 'btn-punch', 'btn-kick'];
+        touchButtons.forEach(id => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                activeTouches[id] = true;
+                
+                if (id === 'btn-jump' && player.isGrounded) player.velocity.y = -15;
+                if (id === 'btn-punch') player.attack('punch');
+                if (id === 'btn-kick') player.attack('kick');
+                updateTouchMovement();
+            });
+
+            el.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                delete activeTouches[id];
+                updateTouchMovement();
+            });
+        });
+
+        function boxCollision(box1, box2) {
+            return (
+                box1.isAttacking &&
+                box1.attackBox.position.x + box1.attackBox.width >= box2.position.x &&
+                box1.attackBox.position.x <= box2.position.x + box2.width &&
+                box1.attackBox.position.y + box1.attackBox.height >= box2.position.y &&
+                box1.attackBox.position.y <= box2.position.y + box2.height
+            )
+        }
+
+        function enemyAI() {
+            if (enemy.health <= 0 || player.health <= 0) {
+                enemy.velocity.x = 0;
+                return;
+            }
+            const distance = enemy.position.x - player.position.x;
+            
+            if (Math.abs(distance) > 70) {
+                enemy.velocity.x = (distance > 0) ? -2.5 : 2.5;
+            } else {
+                enemy.velocity.x = 0;
+                if (Math.random() < 0.04) {
+                    const type = Math.random() > 0.5 ? 'punch' : 'kick';
+                    enemy.attack(type);
+                }
+            }
+        }
+
+        function resetGame() {
+            player.health = 100;
+            enemy.health = 100;
+            player.position = { x: 150, y: 0 };
+            enemy.position = { x: 600, y: 0 };
+            document.getElementById('p1-health').style.width = '100%';
+            document.getElementById('p2-health').style.width = '100%';
+            document.getElementById('screen-msg').style.display = 'none';
+            particles = [];
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // خلفية ليلية مظلمة فخمة
+            ctx.fillStyle = '#0f1219';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // رسم الحلبة والأرضية بستايل المستقبل الـ Cyberpunk
+            ctx.fillStyle = '#1f2833';
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+            ctx.strokeStyle = '#66fcf1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - groundHeight);
+            ctx.lineTo(canvas.width, canvas.height - groundHeight);
+            ctx.stroke();
+
+            // تحديث المقاتلين ورسمهم
+            player.update();
+            enemy.update();
+            enemyAI();
+
+            // تحديث السائل الأزرق المتطاير
+            particles.forEach((p, idx) => {
+                if (p.alpha <= 0) particles.splice(idx, 1);
+                else { p.update(); p.draw(); }
+            });
+
+            if (Object.keys(activeTouches).length === 0) {
+                player.velocity.x = 0;
+                if (keys.ArrowLeft) player.velocity.x = -5;
+                if (keys.ArrowRight) player.velocity.x = 5;
+            }
+
+            // تصادم الضربات واتجاه تطاير السائل الأزرق
+            if (boxCollision(player, enemy)) {
+                player.isAttacking = false;
+                const damage = player.attackType === 'kick' ? 8 : 5;
+                enemy.health -= damage;
+                document.getElementById('p2-health').style.width = Math.max(0, enemy.health) + '%';
+                // السائل يطير باتجاه حركة الضربة لليمين (1)
+                spawnBlueFluid(enemy.position.x + 20, enemy.position.y + 40, 1);
+            }
+
+            if (boxCollision(enemy, player)) {
+                enemy.isAttacking = false;
+                const damage = enemy.attackType === 'kick' ? 6 : 4;
+                player.health -= damage;
+                document.getElementById('p1-health').style.width = Math.max(0, player.health) + '%';
+                // السائل يطير لليسار (-1)
+                spawnBlueFluid(player.position.x + 40, player.position.y + 40, -1);
+            }
+
+            const msg = document.getElementById('screen-msg');
+            const winText = document.getElementById('win-text');
+            if (enemy.health <= 0) {
+                msg.style.display = 'block';
+                winText.innerText = 'ASTON WINS!';
+                winText.style.color = '#00d2ff';
+            } else if (player.health <= 0) {
+                msg.style.display = 'block';
+                winText.innerText = 'AI ENEMY WINS!';
+                winText.style.color = '#ff0055';
+            }
+        }
+
+        animate();
+    </script>
+</body>
+</html>
